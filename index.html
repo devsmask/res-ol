@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Yacht Booking App</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/css/adminlte.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free/css/all.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/main.min.css" rel="stylesheet">
+  <link href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css" rel="stylesheet">
+  <style>
+    body { font-size: 0.95rem; }
+    #calendar-container { max-width: 100%; margin: 0 auto; }
+    .fc { font-size: 0.85rem; }
+    footer { text-align: center; padding: 10px; font-size: 0.85rem; color: #888; }
+  </style>
+</head>
+<body class="layout-top-nav">
+<div class="wrapper">
+  <nav class="main-header navbar navbar-expand navbar-white navbar-light border-bottom">
+    <div class="container">
+      <span class="navbar-brand">Yacht Booking App</span>
+    </div>
+  </nav>
+
+  <div class="content-wrapper py-3">
+    <div class="container">
+      <section id="table-section">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between">
+            <h3 class="card-title">Booking Table</h3>
+            <button class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#addBookingModal">Add Booking</button>
+          </div>
+          <div class="card-body table-responsive">
+            <table class="table table-bordered" id="booking-table">
+              <thead><tr>
+                <th>ID</th><th>Date</th><th>Yacht</th><th>Agent</th><th>Guest</th><th>Packages</th><th>Note</th><th>Status</th><th>Actions</th>
+              </tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="calendar-section">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Booking Calendar</h3></div>
+          <div class="card-body"><div id="calendar-container"></div></div>
+        </div>
+      </section>
+
+      <section id="reminder-section">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between">
+            <h3 class="card-title">Daily Reminder</h3>
+            <input type="date" id="reminder-date" class="form-control w-auto" />
+          </div>
+          <div class="card-body">
+            <pre id="reminder-output" class="bg-light p-3 rounded"></pre>
+            <button class="btn btn-sm btn-outline-primary" onclick="copyReminder()">Copy</button>
+            <button class="btn btn-sm btn-success" onclick="sendToWhatsApp()">Send to WhatsApp</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <footer>
+    <div class="container">
+      &copy; 2025 Yacht Booking App. All rights reserved.
+    </div>
+  </footer>
+</div>
+
+<div class="modal fade" id="addBookingModal" tabindex="-1">
+  <div class="modal-dialog">
+    <form id="bookingForm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Add Booking</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="id" />
+          <input type="date" name="date" class="form-control mb-2" required />
+          <select name="yacht" class="form-select mb-2" required>
+            <option value="">-- Select Yacht --</option>
+            <option>Yacht A</option>
+            <option>Yacht B</option>
+          </select>
+          <input type="text" name="agent" class="form-control mb-2" placeholder="Agent" />
+          <textarea name="guest" class="form-control mb-2" rows="2" placeholder="Guest names (one per line)"></textarea>
+          <select name="packages" class="form-select mb-2" required>
+            <option value="">-- Select Package --</option>
+            <option>Sunset</option>
+            <option>Half Day</option>
+            <option>Full Day</option>
+          </select>
+          <textarea name="note" class="form-control mb-2" rows="2" placeholder="Note"></textarea>
+          <select name="status" class="form-select mb-2">
+            <option>Hold</option>
+            <option>Confirm</option>
+            <option>Cancel</option>
+          </select>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-primary">Save</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/jquery@3.6.4/dist/jquery.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/admin-lte@3.2/dist/js/adminlte.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.9/main.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+const scriptUrl = 'https://script.google.com/macros/s/AKfycbyQaWfzSp6NZwKwcKnIHuX3p_WmS3ymHAqT900vOAqsBLDhgJGOAsFw6E46SSNvSMAImA/exec'; // Replace with actual deployed URL
+
+function generateBookingId() {
+  const now = new Date();
+  return now.getFullYear().toString() +
+    (now.getMonth()+1).toString().padStart(2, '0') +
+    now.getDate().toString().padStart(2, '0') +
+    now.getHours().toString().padStart(2, '0') +
+    now.getMinutes().toString().padStart(2, '0') +
+    now.getSeconds().toString().padStart(2, '0');
+}
+
+function copyReminder() {
+  const text = document.getElementById('reminder-output').innerText;
+  navigator.clipboard.writeText(text);
+  alert("Copied to clipboard!");
+}
+
+function sendToWhatsApp() {
+  const text = document.getElementById('reminder-output').innerText;
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank');
+}
+
+async function fetchBookings() {
+  const res = await fetch(scriptUrl);
+  return await res.json();
+}
+
+function refreshTable(bookings) {
+  const table = $('#booking-table').DataTable();
+  table.clear();
+  bookings.forEach(b => {
+    const row = table.row.add([
+      b.ID,
+      b.Date,
+      b.Yacht,
+      b.Agent,
+      b.Guest,
+      b.Packages,
+      b.Note,
+      b.Status,
+      `<button class='btn btn-sm btn-secondary btn-edit'>Edit</button>`
+    ]).draw().node();
+    $(row).attr('data-id', b.ID);
+  });
+}
+
+function updateCalendar(bookings) {
+  const calendarEl = document.getElementById('calendar-container');
+  calendarEl.innerHTML = '';
+  const calendar = new FullCalendar.Calendar(calendarEl, {
+    initialView: 'dayGridMonth',
+    events: bookings.filter(b => b.Status.toLowerCase() !== 'cancel').map(b => ({
+      title: `${b.Yacht} (${b.Status})`,
+      start: b.Date,
+      color: getStatusColor(b.Status)
+    }))
+  });
+  calendar.render();
+}
+
+function getStatusColor(status) {
+  switch (status.toLowerCase()) {
+    case 'confirm': return '#28a745';
+    case 'hold': return '#ffc107';
+    default: return '#6c757d';
+  }
+}
+
+function renderReminder(bookings, selectedDate) {
+  const text = bookings
+    .filter(b => b.Date === selectedDate && b.Status.toLowerCase() !== 'cancel')
+    .map(b => `${b.Yacht} | ${b.Agent} | ${b.Guest.replace(/\n/g, ', ')} | ${b.Packages} | ${b.Status}`)
+    .join('\n');
+  document.getElementById('reminder-output').innerText = text || 'No bookings';
+}
+
+$(document).ready(async function () {
+  const table = $('#booking-table').DataTable();
+  let bookings = await fetchBookings();
+  refreshTable(bookings);
+  updateCalendar(bookings);
+
+  $('#reminder-date').on('change', function () {
+    renderReminder(bookings, this.value);
+  });
+
+  $('#bookingForm').on('submit', async function (e) {
+    e.preventDefault();
+    const formData = Object.fromEntries(new FormData(this).entries());
+    formData.ID = formData.id || generateBookingId();
+
+    formData.mode = formData.id ? 'edit' : 'add';
+await fetch(scriptUrl, {
+  method: 'POST',
+  body: JSON.stringify(formData),
+  headers: { 'Content-Type': 'application/json' }
+});
+
+
+    bookings = await fetchBookings();
+    refreshTable(bookings);
+    updateCalendar(bookings);
+    $('#addBookingModal').modal('hide');
+    this.reset();
+  });
+
+  $('#booking-table tbody').on('click', '.btn-edit', function () {
+    const row = $(this).closest('tr');
+    const cells = row.find('td');
+    const form = document.forms.bookingForm;
+    form.id.value = cells.eq(0).text();
+    form.date.value = cells.eq(1).text();
+    form.yacht.value = cells.eq(2).text();
+    form.agent.value = cells.eq(3).text();
+    form.guest.value = cells.eq(4).text();
+    form.packages.value = cells.eq(5).text();
+    form.note.value = cells.eq(6).text();
+    form.status.value = cells.eq(7).text();
+    $('#addBookingModal').modal('show');
+  });
+});
+</script>
+</body>
+</html>
